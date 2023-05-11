@@ -1,6 +1,8 @@
 from random import randint, uniform
 from random import sample
 import numpy as np
+import settings
+import random
 
 
 class GeneticSolver:
@@ -115,25 +117,45 @@ class GeneticSolver:
 
         return decrypted_text
 
+    def calculate_ngram_fitness(self, ngrams, ngram_frequency, ngram_weight):
+        """
+        This function calculates the fitness of a text based on the frequency of ngrams.
+
+        Args:
+          ngrams: The ngrams in the text.
+          ngram_frequency: The frequency of each ngram.
+          ngram_weight: The weight of each ngram.
+
+        Returns:
+          The fitness of the text.
+        """
+
+        return sum([ngram_frequency[ngram] * ngram_weight for ngram in ngrams if
+                    ngram in ngram_frequency and ngram_weight > 0])
+
     def calculate_key_fitness(self, text):
+        """
+        This function calculates the fitness of a text based on its unigrams, bigrams, and trigrams.
+
+        Args:
+          text: The text to calculate the fitness of.
+
+        Returns:
+          The fitness of the text.
+        """
+
         unigrams = self.generate_ngrams(text, 1)
         bigrams = self.generate_ngrams(text, 2)
         trigrams = self.generate_ngrams(text, 3)
 
-        bigram_fitness = sum([self.bigram_frequency[bigram] for bigram in bigrams if
-                              bigram in self.bigram_frequency and self.bigram_weight > 0])
+        unigrams_fitness = self.calculate_ngram_fitness(unigrams, self.unigram_frequency, self.unigram_weight)
+        bigrams_fitness = self.calculate_ngram_fitness(bigrams, self.bigram_frequency, self.bigram_weight)
+        trigrams_fitness = self.calculate_ngram_fitness(trigrams, self.trigram_frequency, self.trigram_weight)
 
         words = text.lower().split()
         words_appear = len(set(self.list_of_words).intersection(words))
 
-        trigram_fitness = sum([self.trigram_frequency[trigram] for trigram in trigrams if
-                               trigram in self.trigram_frequency and self.trigram_weight > 0])
-
-        unigrams_fitness = sum([self.trigram_frequency[unigram] for unigram in unigrams if
-                                unigram in self.trigram_frequency and self.unigram_weight > 0])
-
-        fitness = (bigram_fitness * self.bigram_weight) + (trigram_fitness * self.trigram_weight) + (
-                    unigrams_fitness * self.unigram_weight) + words_appear
+        fitness = (unigrams_fitness + bigrams_fitness + trigrams_fitness) + words_appear
 
         return fitness
 
@@ -146,7 +168,6 @@ class GeneticSolver:
                 offspring[offspring.index(None)] = ch
 
         return ''.join(offspring)
-
 
     def mutate_key(self, key):
         a, b = randint(0, len(key) - 1), randint(0, len(key) - 1)
@@ -190,11 +211,22 @@ class GeneticSolver:
             selected_keys.append(tournament_keys[sorted_indices[winner_index]])
         return selected_keys
 
+
     def reproduction(self, population, fitness):
+        """
+        This function reproduces the population based on the fitness of each individual.
+
+        Args:
+          population: The current population.
+          fitness: The fitness of each individual in the population.
+
+        Returns:
+          The new population.
+        """
+
         crossover_population = []
 
         while len(crossover_population) < self.crossover_count:
-            parent_one, parent_two = None, None
 
             if self.selection_method == 'RWS':
                 parent_one_index = self.roulette_wheel_selection(fitness)
@@ -215,29 +247,23 @@ class GeneticSolver:
         return crossover_population
 
     def mutation(self, population, population_size):
+
         for i in range(population_size):
-            r = uniform(0, 1)
-
+            r = random.random()
             if r < self.mutation_probability:
-                key = population[i]
-                mutated_key = self.mutate_key(key)
-
-                population[i] = mutated_key
+                population[i] = self.mutate_key(population[i])
 
         return population
-
 
     def convert_to_plaintext(self, decrypted_text):
         plaintext = [c.lower() if self.lettercase[i] else c for i, c in enumerate(decrypted_text)]
         return ''.join(plaintext)
-
 
     def get_list_of_words(self, filename):
         with open(filename, 'r') as f:
             contnet = f.read()
 
         return contnet.split('\n')
-
 
     def solve(self, ciphertext = ''):
         # Defining ciphertext
@@ -258,17 +284,10 @@ class GeneticSolver:
         self.ciphertext = self.ciphertext.upper()
 
         # Getting pre-computed ngram freqread_letter_frequenciesuency
-        bigram_filename = 'data/Letter2_Freq.txt'
-        self.bigram_frequency = self.read_letter_frequencies(bigram_filename)
-
-        unigram_filename = 'data/Letter_Freq.txt'
-        self.unigram_frequency =  self.read_letter_frequencies(unigram_filename)
-
-        trigram_filename = 'data/dict.txt'
-        self.trigram_frequency =  self.get_char_trigram_dict(trigram_filename)
-
-        dict_filename = 'data/dict.txt'
-        self.list_of_words =  self.get_list_of_words(dict_filename)
+        self.bigram_frequency = self.read_letter_frequencies(settings.BIGRAM_FILENAME_PATH)
+        self.unigram_frequency =  self.read_letter_frequencies(settings.UNIGRAM_FILENAME_PATH)
+        self.trigram_frequency =  self.get_char_trigram_dict(settings.DICT_FILENAME_PATH)
+        self.list_of_words =  self.get_list_of_words(settings.DICT_FILENAME_PATH)
 
         # Main Program
         population = self.initialization()
@@ -299,15 +318,17 @@ class GeneticSolver:
             decrypted_text = self.decrypt(key)
 
             if self.verbose:
-                plaintext = self.convert_to_plaintext(decrypted_text)
-
-                print('[Generation ' + str(no) + ']',)
-                print('Average Fitness:', average_fitness)
-                print('Max Fitness:', highest_fitness)
-                print('Key:', key)
-                print('Decrypted Text:\n' + plaintext + '\n')
+                self.verbose_display(average_fitness, decrypted_text, highest_fitness, key, no)
 
         plaintext = self.convert_to_plaintext(decrypted_text)
         return plaintext
+
+    def verbose_display(self, average_fitness, decrypted_text, highest_fitness, key, no):
+        plaintext = self.convert_to_plaintext(decrypted_text)
+        print('[Generation ' + str(no) + ']', )
+        print('Average Fitness:', average_fitness)
+        print('Max Fitness:', highest_fitness)
+        print('Key:', key)
+        print('Decrypted Text:\n' + plaintext + '\n')
 
 
