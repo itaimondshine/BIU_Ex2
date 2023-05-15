@@ -6,8 +6,15 @@ import random
 
 
 class GeneticSolver:
-    def __init__(self):
+    def __init__(self, ciphertext):
         # Genetic Algorithm Parameters
+        self.ciphertext = ciphertext
+        self.lettercase = [ch.islower() and ch.isalpha() for ch in self.ciphertext]
+        self.ciphertext = self.ciphertext.upper()
+        self.bigram_frequency = self.read_letter_frequencies(settings.BIGRAM_FILENAME_PATH)
+        self.unigram_frequency = self.read_letter_frequencies(settings.UNIGRAM_FILENAME_PATH)
+        self.list_of_words = self.get_list_of_words(settings.DICT_FILENAME_PATH)
+        self.trigram_frequency = self.get_char_trigram_dict(settings.DICT_FILENAME_PATH)
         self.generations = 500
         self.population_size = 500
         self.tournament_size = 20
@@ -34,9 +41,8 @@ class GeneticSolver:
         self.tournament_probabilities = [self.tournament_winner_probability]
 
         for i in range(1, self.tournament_size):
-            probability = self.tournament_probabilities[i-1] * (1.0 - self.tournament_winner_probability)
+            probability = self.tournament_probabilities[i - 1] * (1.0 - self.tournament_winner_probability)
             self.tournament_probabilities.append(probability)
-
 
     def get_char_trigram_dict(self, file_name):
         """
@@ -62,7 +68,6 @@ class GeneticSolver:
                     char_trigram_dict[char_trigram] += 1
 
         return char_trigram_dict
-
 
     def read_letter_frequencies(self, filename):
         with open(filename, 'r') as f:
@@ -175,7 +180,6 @@ class GeneticSolver:
         key[a], key[b] = key[b], key[a]
         return ''.join(key)
 
-
     def initialization(self):
         population = []
         for _ in range(self.population_size):
@@ -210,7 +214,6 @@ class GeneticSolver:
             winner_index = np.random.choice(self.tournament_size, p=self.tournament_probabilities)
             selected_keys.append(tournament_keys[sorted_indices[winner_index]])
         return selected_keys
-
 
     def reproduction(self, population, fitness):
         """
@@ -262,44 +265,31 @@ class GeneticSolver:
     def get_list_of_words(self, filename):
         with open(filename, 'r') as f:
             contnet = f.read()
-
         return contnet.split('\n')
 
-    def solve(self, ciphertext = ''):
-        # Defining ciphertext
-        self.ciphertext = ciphertext
+    def new_gen(self, population):
+        fitness = self.evaluation(population)
+        elitist_population = self.elitism(population, fitness)
+        crossover_population = self.reproduction(population, fitness)
+        population = elitist_population + crossover_population
+        return population, fitness
 
-        # Checking if ciphertext is valid
-        if self.ciphertext == '':
-            message = (
-                '\n(GeneticSolver) Ciphertext invalid. Use solve() as such:\n'
-                '\tsolver = GeneticSolver()\n'
-                '\tsolver.solve("Example ciphertext")'
-            )
-            print(message)
-            return
+    def get_best_results(self, population, fitness):
+        highest_fitness = max(fitness)
+        index = fitness.index(highest_fitness)
+        key = population[index]
 
-        # Formatting ciphertext
-        self.lettercase = [ch.islower() and ch.isalpha() for ch in self.ciphertext]
-        self.ciphertext = self.ciphertext.upper()
+        return highest_fitness, key
 
-        # Getting pre-computed ngram freqread_letter_frequenciesuency
-        self.bigram_frequency = self.read_letter_frequencies(settings.BIGRAM_FILENAME_PATH)
-        self.unigram_frequency =  self.read_letter_frequencies(settings.UNIGRAM_FILENAME_PATH)
-        self.trigram_frequency =  self.get_char_trigram_dict(settings.DICT_FILENAME_PATH)
-        self.list_of_words =  self.get_list_of_words(settings.DICT_FILENAME_PATH)
-
+    def solve(self):
         # Main Program
         population = self.initialization()
 
         highest_fitness = 0
         stuck_counter = 0
         for no in range(self.generations + 1):
-            fitness = self.evaluation(population)
-            elitist_population = self.elitism(population, fitness)
-            crossover_population = self.reproduction(population, fitness)
 
-            population = elitist_population + crossover_population
+            population, fitness = self.new_gen(population)
 
             # Terminate if highest_fitness not increasing
             if highest_fitness == max(fitness):
@@ -310,17 +300,14 @@ class GeneticSolver:
             if stuck_counter >= self.terminate:
                 break
 
-            highest_fitness = max(fitness)
-            average_fitness = sum(fitness) / self.population_size
+            highest_fitness, key = self.get_best_results(population, fitness)
 
-            index = fitness.index(highest_fitness)
-            key = population[index]
             decrypted_text = self.decrypt(key)
 
             if self.verbose:
-                self.verbose_display(average_fitness, decrypted_text, highest_fitness, key, no)
+                self.verbose_display(sum(fitness) / self.population_size, decrypted_text, highest_fitness, key, no)
 
-        plaintext = self.convert_to_plaintext(decrypted_text)
+        plaintext = self.convert_to_plaintext(self.decrypt(key))
         return plaintext
 
     def verbose_display(self, average_fitness, decrypted_text, highest_fitness, key, no):
@@ -330,5 +317,3 @@ class GeneticSolver:
         print('Max Fitness:', highest_fitness)
         print('Key:', key)
         print('Decrypted Text:\n' + plaintext + '\n')
-
-
