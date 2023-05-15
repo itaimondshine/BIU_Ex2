@@ -285,6 +285,7 @@ class GeneticSolver:
         # Main Program
         population = self.initialization()
 
+        plaintext = ''
         highest_fitness = 0
         stuck_counter = 0
         for no in range(self.generations + 1):
@@ -302,12 +303,11 @@ class GeneticSolver:
 
             highest_fitness, key = self.get_best_results(population, fitness)
 
-            decrypted_text = self.decrypt(key)
+            plaintext = self.convert_to_plaintext(self.decrypt(key))
 
             if self.verbose:
-                self.verbose_display(sum(fitness) / self.population_size, decrypted_text, highest_fitness, key, no)
+                self.verbose_display(sum(fitness) / self.population_size, plaintext, highest_fitness, key, no)
 
-        plaintext = self.convert_to_plaintext(self.decrypt(key))
         return plaintext
 
     def verbose_display(self, average_fitness, decrypted_text, highest_fitness, key, no):
