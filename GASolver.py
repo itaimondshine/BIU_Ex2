@@ -1,10 +1,18 @@
 from random import randint, uniform
 from random import sample
+from copy import deepcopy
+from enum import Enum
 import numpy as np
 import settings
 import random
+import string
 
+LETTERS = set(string.ascii_lowercase)
 
+class SolverType(Enum):
+    REGULAR = 0,
+    DARWIN = 1,
+    LAMARCK = 2
 class GeneticSolver:
     def __init__(self, ciphertext):
         # Genetic Algorithm Parameters
@@ -14,6 +22,7 @@ class GeneticSolver:
         self.bigram_frequency = self.read_letter_frequencies(settings.BIGRAM_FILENAME_PATH)
         self.unigram_frequency = self.read_letter_frequencies(settings.UNIGRAM_FILENAME_PATH)
         self.list_of_words = self.get_list_of_words(settings.DICT_FILENAME_PATH)
+        self.set_of_words = set(self.list_of_words)
         self.trigram_frequency = self.get_char_trigram_dict(settings.DICT_FILENAME_PATH)
         self.generations = 500
         self.population_size = 500
@@ -281,7 +290,38 @@ class GeneticSolver:
 
         return highest_fitness, key
 
-    def solve(self):
+    def optimize(self, population, fitness):
+        texts = [self.decrypt(key).lower().split() for key in population]
+        best_index = fitness.index(max(fitness))
+        best_text = texts[best_index]
+        best_key = population[best_index].lower()
+        best_key_dict = {letter : i for (i, letter) in enumerate(best_key)}
+        #best_text_copy = deepcopy(best_text)
+
+        for word in best_text:
+            if len(word) > 3 and word in self.set_of_words:
+                continue
+            last_letter = word[-1]
+            if last_letter not in string.ascii_lowercase:
+                continue
+            for letter in LETTERS:
+                iter_best_key = list(deepcopy(best_key))
+                iter_best_key[best_key_dict[last_letter]] = letter
+                iter_best_key[best_key_dict[letter]] = last_letter
+                iter_best_key = "".join(iter_best_key)
+                if self.calculate_key_fitness(self.decrypt(iter_best_key)) > max(fitness):
+                    # new_population = []
+                    # for key in population:
+                    #     key.index(letter), key.index_f
+                    #     new_population.append(key[]
+                    population[best_index] = iter_best_key.upper()
+                    return population
+
+
+        return population
+
+        a = 2
+    def solve(self, solver=SolverType.REGULAR):
         # Main Program
         population = self.initialization()
 
@@ -291,7 +331,12 @@ class GeneticSolver:
         for no in range(self.generations + 1):
 
             population, fitness = self.new_gen(population)
+            if solver != SolverType.REGULAR:
+                optimized_population = self.optimize(population, fitness)
+                fitness = self.evaluation(optimized_population)
 
+            if solver == SolverType.LAMARCK:
+                population = optimized_population
             # Terminate if highest_fitness not increasing
             if highest_fitness == max(fitness):
                 stuck_counter += 1
