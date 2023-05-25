@@ -3,27 +3,31 @@ from random import sample
 from copy import deepcopy
 from enum import Enum
 import numpy as np
-import settings
+import consts
 import random
 import string
+from consts import PLAIN_FILE_PATH, PERM_FILE_PATH
 
 LETTERS = set(string.ascii_lowercase)
+
 
 class SolverType(Enum):
     REGULAR = 0,
     DARWIN = 1,
     LAMARCK = 2
+
+
 class GeneticSolver:
     def __init__(self, ciphertext):
         # Genetic Algorithm Parameters
         self.ciphertext = ciphertext
         self.lettercase = [ch.islower() and ch.isalpha() for ch in self.ciphertext]
         self.ciphertext = self.ciphertext.upper()
-        self.bigram_frequency = self.read_letter_frequencies(settings.BIGRAM_FILENAME_PATH)
-        self.unigram_frequency = self.read_letter_frequencies(settings.UNIGRAM_FILENAME_PATH)
-        self.list_of_words = self.get_list_of_words(settings.DICT_FILENAME_PATH)
+        self.bigram_frequency = self.read_letter_frequencies(consts.BIGRAM_FILENAME_PATH)
+        self.unigram_frequency = self.read_letter_frequencies(consts.UNIGRAM_FILENAME_PATH)
+        self.list_of_words = self.get_list_of_words(consts.DICT_FILENAME_PATH)
         self.set_of_words = set(self.list_of_words)
-        self.trigram_frequency = self.get_char_trigram_dict(settings.DICT_FILENAME_PATH)
+        self.trigram_frequency = self.get_char_trigram_dict(consts.DICT_FILENAME_PATH)
         self.generations = 500
         self.population_size = 500
         self.tournament_size = 20
@@ -52,6 +56,26 @@ class GeneticSolver:
         for i in range(1, self.tournament_size):
             probability = self.tournament_probabilities[i - 1] * (1.0 - self.tournament_winner_probability)
             self.tournament_probabilities.append(probability)
+
+    # ---------------------------Utils-------------------------------------------#
+
+    def save_perm_to_file(self, key):
+        with open(PERM_FILE_PATH, "a") as file:
+            for i in range(len(self.letters)):
+                letter = self.letters[i]
+                if i < len(key):
+                    char = key[i]
+                else:
+                    char = ""
+
+                line = f"{letter} {char}\n"
+                file.write(line)
+
+    def save_data_to_file(self, data):
+        with open(PLAIN_FILE_PATH, 'w') as f:
+            f.write(data)
+
+    # ---------------------------Implementation-------------------------------------------#
 
     def get_char_trigram_dict(self, file_name):
         """
@@ -241,6 +265,7 @@ class GeneticSolver:
         while len(crossover_population) < self.crossover_count:
 
             if self.selection_method == 'RWS':
+                # Choose the best two parents with the highest fitness
                 parent_one_index = self.roulette_wheel_selection(fitness)
                 parent_two_index = self.roulette_wheel_selection(fitness)
 
@@ -295,8 +320,8 @@ class GeneticSolver:
         best_index = fitness.index(max(fitness))
         best_text = texts[best_index]
         best_key = population[best_index].lower()
-        best_key_dict = {letter : i for (i, letter) in enumerate(best_key)}
-        #best_text_copy = deepcopy(best_text)
+        best_key_dict = {letter: i for (i, letter) in enumerate(best_key)}
+        # best_text_copy = deepcopy(best_text)
 
         for word in best_text:
             if len(word) > 3 and word in self.set_of_words:
@@ -317,15 +342,15 @@ class GeneticSolver:
                     population[best_index] = iter_best_key.upper()
                     return population
 
-
         return population
 
         a = 2
+
     def solve(self, solver=SolverType.REGULAR):
         # Main Program
         population = self.initialization()
 
-        plaintext = ''
+        key = plaintext = ''
         highest_fitness = 0
         stuck_counter = 0
         for no in range(self.generations + 1):
@@ -353,7 +378,13 @@ class GeneticSolver:
             if self.verbose:
                 self.verbose_display(sum(fitness) / self.population_size, plaintext, highest_fitness, key, no)
 
+        self.save_data_to_file(plaintext)
+        self.save_perm_to_file(key)
         return plaintext
+
+    def save_to_file(self, data, path):
+        with open(path, 'w') as f:
+            f.write(data)
 
     def verbose_display(self, average_fitness, decrypted_text, highest_fitness, key, no):
         plaintext = self.convert_to_plaintext(decrypted_text)
