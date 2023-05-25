@@ -7,5 +7,5 @@ ciphertext = Path(sys.argv[1]).read_text()
 solver = GeneticSolver(ciphertext)
 solver.verbose = True
 
-plaintext = solver.solve(SolverType.REGULAR)
+plaintext = solver.solve(SolverType.DARWIN)
 print(plaintext)
