@@ -13,6 +13,18 @@ class SolverType(Enum):
 
 # --------------------------------------Util Functions -----------------------------#
 
+
+def save_plain_to_file(plain_text):
+    with open(PLAIN_FILE_PATH, 'w') as pf:
+        pf.write(plain_text)
+
+
+def save_perm_to_file(key: str):
+    with open(PERM_FILE_PATH, 'w') as f:
+        for i, char in enumerate(key):
+            f.write('{} {}\n'.format(chr(i + 65), char))
+
+
 def get_best_results(population, fitness):
     highest_fitness = max(fitness)
     index = fitness.index(highest_fitness)
@@ -216,7 +228,6 @@ class GeneticSolver:
         return population
 
     def evaluation(self, population):
-
         return [self.calculate_key_fitness(self.decrypt(key)) for key in population]
 
     def elitism(self, population, fitness):
@@ -227,21 +238,22 @@ class GeneticSolver:
 
         return elitist_population
 
-    def roulette_wheel_selection(self, fitness):
+    def select_by_roulette(self, fitness):
         probabilities = np.array(fitness) / sum(fitness)
-        index = np.random.choice(range(self.population_size), p=probabilities)
-        return index
+        return np.random.choice(range(self.population_size), p=probabilities)
 
-    def tournament_selection(self, population, fitness):
-        selected_keys = []
-        for i in range(2):
-            tournament_indices = np.random.choice(len(population), size=self.tournament_size, replace=False)
-            tournament_fitness = [fitness[j] for j in tournament_indices]
-            tournament_keys = [population[j] for j in tournament_indices]
-            sorted_indices = np.argsort(tournament_fitness)[::-1]
-            winner_index = np.random.choice(self.tournament_size, p=self.tournament_probabilities)
-            selected_keys.append(tournament_keys[sorted_indices[winner_index]])
-        return selected_keys
+    def select_by_tournament(self, population, fitness):
+        tournament_indices = np.random.choice(len(population), size=(2, self.tournament_size), replace=False)
+        tournament_fitness = np.take(fitness, tournament_indices)
+        tournament_keys = np.take(population, tournament_indices)
+        sorted_indices = np.argsort(tournament_fitness, axis=1)[:, ::-1]
+        winner_indices = np.random.choice(self.tournament_size, size=2, p=self.tournament_probabilities)
+        return np.array([tournament_keys[i][sorted_indices[i][winner_indices[i]]] for i in range(2)])
+
+    def generate_offspring(self, parent_one, parent_two):
+        offspring_one = self.combine_strings(parent_one, parent_two)
+        offspring_two = self.combine_strings(parent_two, parent_one)
+        return offspring_one, offspring_two
 
     def reproduction(self, population, fitness):
         """
@@ -260,16 +272,15 @@ class GeneticSolver:
         while len(crossover_population) < self.crossover_count:
 
             if self.selection_method == 'RWS':
-                parent_one_index = self.roulette_wheel_selection(fitness)
-                parent_two_index = self.roulette_wheel_selection(fitness)
+                parent_one_index = self.select_by_tournament(population, fitness)
+                parent_two_index = self.select_by_roulette(fitness)
 
                 parent_one = population[parent_one_index]
                 parent_two = population[parent_two_index]
             else:
-                parent_one, parent_two = self.tournament_selection(population, fitness)
+                parent_one, parent_two = self.select_by_tournament(population, fitness)
 
-            offspring_one = self.combine_strings(parent_one, parent_two)
-            offspring_two = self.combine_strings(parent_two, parent_one)
+            offspring_one, offspring_two = self.generate_offspring(parent_one, parent_two)
 
             crossover_population += [offspring_one, offspring_two]
 
@@ -329,6 +340,7 @@ class GeneticSolver:
         # Main Program
         population = self.initialization()
 
+        key = ''
         plaintext = ''
         highest_fitness = 0
         stuck_counter = 0
@@ -354,8 +366,11 @@ class GeneticSolver:
 
             plaintext = self.convert_to_plaintext(self.decrypt(key))
 
-            if self.verbose:
-                self.verbose_display(sum(fitness) / self.population_size, plaintext, highest_fitness, key, no)
+            # if self.verbose:
+            #     self.verbose_display(sum(fitness) / self.population_size, plaintext, highest_fitness, key, no)
+
+        save_plain_to_file(plain_text=plaintext)
+        save_perm_to_file(key=key)
 
         return plaintext
 
