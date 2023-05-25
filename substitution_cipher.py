@@ -3,12 +3,21 @@ from enum import Enum
 import numpy as np
 from consts import *
 import random
+import matplotlib.pyplot as plt
 
 
 class SolverType(Enum):
     REGULAR = 0,
     DARWIN = 1,
     LAMARCK = 2
+
+
+def plot_graph(data, title="", xlabel="", ylabel=""):
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.plot(data)
+    plt.show()
 
 
 # --------------------------------------Util Functions -----------------------------#
@@ -98,7 +107,6 @@ def mutate_key(key):
 
 
 def get_char_trigram_dict(file_name):
-
     with open(file_name, 'r') as f:
         words = f.read().replace('\n', '')
 
@@ -133,7 +141,7 @@ class GeneticSubstitutionSolver:
         self.mutation_probability = 0.2
         self.elitism_percentage = 0.15
         self.selection_method = 'TS'
-        self.terminate = 100
+        self.terminate = 20
 
         # Other parameters
         self.bigram_weight = 0.4
@@ -309,12 +317,16 @@ class GeneticSubstitutionSolver:
         plaintext = ''
         highest_fitness = 0
         convergence_counter = 0
+        total_fitness = []
         for gen in range(self.generations + 1):
 
             population, fitness = self.new_gen(population)
             if solver != SolverType.REGULAR:
                 optimized_population = self.optimize(population, fitness)
                 fitness = self.evaluation(optimized_population)
+                total_fitness.append(max(fitness))
+            else:
+                total_fitness.append(max(fitness))
 
             if solver == SolverType.LAMARCK:
                 population = optimized_population
@@ -331,8 +343,9 @@ class GeneticSubstitutionSolver:
 
             plaintext = self.convert_to_plaintext(self.decrypt(key))
 
-            self.info_display(plaintext, highest_fitness, key, gen)
+            # self.info_display(plaintext, highest_fitness, key, gen)
 
+        plot_graph(total_fitness, "Fitness per generations", "Number of generations", "Max Fitness Score")
         save_plain_to_file(plain_text=plaintext)
         save_perm_to_file(key=key)
 
