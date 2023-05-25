@@ -1,4 +1,4 @@
-from GASolver import GeneticSolver, SolverType
+from substitution_cipher import GeneticSolver, SolverType
 from pathlib import Path
 import sys
 

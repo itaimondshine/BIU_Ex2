@@ -1,31 +1,112 @@
-from random import randint, uniform
-from random import sample
-from copy import deepcopy
+from random import randint, sample
 from enum import Enum
 import numpy as np
-import consts
+from consts import *
 import random
-import string
 
-LETTERS = set(string.ascii_lowercase)
-UPPER_LETTERS = set(string.ascii_uppercase)
 
 class SolverType(Enum):
     REGULAR = 0,
     DARWIN = 1,
     LAMARCK = 2
+
+
+# --------------------------------------Util Functions -----------------------------#
+
+def get_best_results(population, fitness):
+    highest_fitness = max(fitness)
+    index = fitness.index(highest_fitness)
+    key = population[index]
+
+    return highest_fitness, key
+
+
+def get_list_of_words(filename):
+    with open(filename, 'r') as f:
+        content = f.read()
+    return content.split('\n')
+
+
+def read_letter_frequencies(filename):
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+    frequencies = {}
+    for line in lines:
+        parts = line.strip().split('\t')
+        if len(parts[1:]) > 0:
+            letter = str(parts[1:][0])
+            frequency = float(parts[0])
+            frequencies[letter] = frequency
+
+    return frequencies
+
+
+def get_char_bigram_dict(file_name):
+    """
+    Get a dict of mapping between char bigram and number of appreances in the text.
+
+    Args:
+      file_name: The name of the file to read.
+
+    Returns:
+      A dict of mapping between char bigram and number of appreances in the text.
+    """
+
+    with open(file_name, 'r') as f:
+        words = f.read().replace('\n', '')
+
+    char_bigram_dict = {}
+    for i in range(len(words) - 1):
+        char_bigram = words[i] + words[i + 1]
+        if char_bigram.isalpha():
+            if char_bigram not in char_bigram_dict:
+                char_bigram_dict[char_bigram] = 1
+            else:
+                char_bigram_dict[char_bigram] += 1
+
+    return char_bigram_dict
+
+
+def generate_ngrams(word, n):
+    ngrams = [word[i:i + n] for i in range(len(word) - n + 1)]
+    return ngrams
+
+
+def calculate_ngram_fitness(ngrams, ngram_frequency, ngram_weight):
+    """
+    This function calculates the fitness of a text based on the frequency of ngrams.
+
+    Args:
+      ngrams: The ngrams in the text.
+      ngram_frequency: The frequency of each ngram.
+      ngram_weight: The weight of each ngram.
+
+    Returns:
+      The fitness of the text.
+    """
+
+    return sum([ngram_frequency[ngram] * ngram_weight for ngram in ngrams if
+                ngram in ngram_frequency and ngram_weight > 0])
+
+
+def mutate_key(key):
+    a, b = randint(0, len(key) - 1), randint(0, len(key) - 1)
+    key = list(key)
+    key[a], key[b] = key[b], key[a]
+    return ''.join(key)
+
+
 class GeneticSolver:
     def __init__(self, ciphertext):
-        # Genetic Algorithm Parameters
         self.ciphertext = ciphertext
         self.lettercase = [ch.islower() and ch.isalpha() for ch in self.ciphertext]
         self.ciphertext = self.ciphertext.upper()
-        self.bigram_frequency = self.read_letter_frequencies(consts.BIGRAM_FILENAME_PATH)
-        self.unigram_frequency = self.read_letter_frequencies(consts.UNIGRAM_FILENAME_PATH)
-        self.list_of_words = self.get_list_of_words(consts.DICT_FILENAME_PATH)
-        self.set_of_words = set(self.list_of_words)
+        self.bigram_frequency = read_letter_frequencies(BIGRAM_FILENAME_PATH)
+        self.unigram_frequency = read_letter_frequencies(UNIGRAM_FILENAME_PATH)
+        self.set_of_words = set(get_list_of_words(DICT_FILENAME_PATH))
         self.set_of_words_upper = {word.upper() for word in self.set_of_words}
-        self.trigram_frequency = self.get_char_trigram_dict(consts.DICT_FILENAME_PATH)
+        self.trigram_frequency = self.get_char_trigram_dict(DICT_FILENAME_PATH)
         self.generations = 500
         self.population_size = 500
         self.tournament_size = 20
@@ -80,50 +161,6 @@ class GeneticSolver:
 
         return char_trigram_dict
 
-    def read_letter_frequencies(self, filename):
-        with open(filename, 'r') as f:
-            lines = f.readlines()
-
-        frequencies = {}
-        for line in lines:
-            parts = line.strip().split('\t')
-            if len(parts[1:]) > 0:
-                letter = str(parts[1:][0])
-                frequency = float(parts[0])
-                frequencies[letter] = frequency
-
-        return frequencies
-
-    def get_char_bigram_dict(self, file_name):
-        """
-        Get a dict of mapping between char bigram and number of appreances in the text.
-
-        Args:
-          file_name: The name of the file to read.
-
-        Returns:
-          A dict of mapping between char bigram and number of appreances in the text.
-        """
-
-        with open(file_name, 'r') as f:
-            words = f.read().replace('\n', '')
-
-        char_bigram_dict = {}
-        for i in range(len(words) - 1):
-            char_bigram = words[i] + words[i + 1]
-            if char_bigram.isalpha():
-                if char_bigram not in char_bigram_dict:
-                    char_bigram_dict[char_bigram] = 1
-                else:
-                    char_bigram_dict[char_bigram] += 1
-
-        return char_bigram_dict
-
-    def generate_ngrams(self, word, n):
-        ngrams = [word[i:i + n] for i in range(len(word) - n + 1)]
-        #processed_ngrams = [ngram for ngram in ngrams if ngram.isalpha()]
-        return ngrams
-
     def decrypt(self, key):
         letter_mapping = {self.letters[i]: key.upper()[i] for i in range(26)}
 
@@ -132,22 +169,6 @@ class GeneticSolver:
             decrypted_text += letter_mapping.get(character, character)
 
         return decrypted_text
-
-    def calculate_ngram_fitness(self, ngrams, ngram_frequency, ngram_weight):
-        """
-        This function calculates the fitness of a text based on the frequency of ngrams.
-
-        Args:
-          ngrams: The ngrams in the text.
-          ngram_frequency: The frequency of each ngram.
-          ngram_weight: The weight of each ngram.
-
-        Returns:
-          The fitness of the text.
-        """
-
-        return sum([ngram_frequency[ngram] * ngram_weight for ngram in ngrams if
-                    ngram in ngram_frequency and ngram_weight > 0 ])
 
     def calculate_key_fitness(self, text):
         """
@@ -160,13 +181,15 @@ class GeneticSolver:
           The fitness of the text.
         """
 
-        unigrams = self.generate_ngrams(text, 1) if self.unigram_weight else []
-        bigrams = self.generate_ngrams(text, 2)
-        trigrams = [] #self.generate_ngrams(text, 3)
+        unigrams = generate_ngrams(text, 1) if self.unigram_weight else []
+        bigrams = generate_ngrams(text, 2)
+        trigrams = []  # self.generate_ngrams(text, 3)
 
-        unigrams_fitness = self.calculate_ngram_fitness(unigrams, self.unigram_frequency, self.unigram_weight) if self.unigram_weight else 0
-        bigrams_fitness = self.calculate_ngram_fitness(bigrams, self.bigram_frequency, self.bigram_weight)
-        trigrams_fitness = 0#self.calculate_ngram_fitness(trigrams, self.trigram_frequency, self.trigram_weight)
+        unigrams_fitness = calculate_ngram_fitness(unigrams, self.unigram_frequency,
+                                                   self.unigram_weight) if self.unigram_weight else 0
+        bigrams_fitness = calculate_ngram_fitness(bigrams, self.bigram_frequency, self.bigram_weight)
+
+        trigrams_fitness = 0  # self.calculate_ngram_fitness(trigrams, self.trigram_frequency, self.trigram_weight)
 
         words = text.split()
         words_appear = len(self.set_of_words_upper.intersection(words))
@@ -175,21 +198,15 @@ class GeneticSolver:
 
         return fitness
 
-    def merge_keys(self, one, two):
+    def combine_strings(self, string1, string2):
         crossover_points = sample(range(26), self.crossover_points_count)
-        offspring = [one[i] if i in crossover_points else None for i in range(26)]
+        offspring = [string1[i] if i in crossover_points else None for i in range(26)]
 
-        for ch in two:
-            if ch not in offspring:
-                offspring[offspring.index(None)] = ch
+        for char in string2:
+            if char not in offspring:
+                offspring[offspring.index(None)] = char
 
         return ''.join(offspring)
-
-    def mutate_key(self, key):
-        a, b = randint(0, len(key) - 1), randint(0, len(key) - 1)
-        key = list(key)
-        key[a], key[b] = key[b], key[a]
-        return ''.join(key)
 
     def initialization(self):
         population = []
@@ -251,8 +268,8 @@ class GeneticSolver:
             else:
                 parent_one, parent_two = self.tournament_selection(population, fitness)
 
-            offspring_one = self.merge_keys(parent_one, parent_two)
-            offspring_two = self.merge_keys(parent_two, parent_one)
+            offspring_one = self.combine_strings(parent_one, parent_two)
+            offspring_two = self.combine_strings(parent_two, parent_one)
 
             crossover_population += [offspring_one, offspring_two]
 
@@ -265,18 +282,13 @@ class GeneticSolver:
         for i in range(population_size):
             r = random.random()
             if r < self.mutation_probability:
-                population[i] = self.mutate_key(population[i])
+                population[i] = mutate_key(population[i])
 
         return population
 
     def convert_to_plaintext(self, decrypted_text):
         plaintext = [c.lower() if self.lettercase[i] else c for i, c in enumerate(decrypted_text)]
         return ''.join(plaintext)
-
-    def get_list_of_words(self, filename):
-        with open(filename, 'r') as f:
-            contnet = f.read()
-        return contnet.split('\n')
 
     def new_gen(self, population):
         fitness = self.evaluation(population)
@@ -285,21 +297,13 @@ class GeneticSolver:
         population = elitist_population + crossover_population
         return population, fitness
 
-    def get_best_results(self, population, fitness):
-        highest_fitness = max(fitness)
-        index = fitness.index(highest_fitness)
-        key = population[index]
-
-        return highest_fitness, key
-
     def optimize(self, population, fitness):
         texts = [self.decrypt(key) for key in population]
         best_index = fitness.index(max(fitness))
         best_text_str = texts[best_index].upper()
         best_text = best_text_str.split()
         best_key = population[best_index]
-        best_key_dict = {letter : i for (i, letter) in enumerate(best_key)}
-        #best_text_copy = deepcopy(best_text)
+        best_key_dict = {letter: i for (i, letter) in enumerate(best_key)}
         max_fitness = max(fitness)
         for word in best_text:
             if len(word) < 5 or word in self.set_of_words_upper or (set(word) - UPPER_LETTERS):
@@ -311,11 +315,6 @@ class GeneticSolver:
             for letter in UPPER_LETTERS:
                 new_text = best_template.replace(letter, last_letter).replace('$', letter)
                 if self.calculate_key_fitness(new_text) > max_fitness:
-                #if self.calculate_key_fitness(self.decrypt(iter_best_key)) > max_fitness:
-                    # new_population = []
-                    # for key in population:
-                    #     key.index(letter), key.index_f
-                    #     new_population.append(key[]
                     iter_best_key = list(best_key)
                     iter_best_key[best_key_dict[last_letter]] = letter
                     iter_best_key[best_key_dict[letter]] = last_letter
@@ -324,10 +323,8 @@ class GeneticSolver:
                     print("Optimized")
                     return population
 
-
         return population
 
-        a = 2
     def solve(self, solver=SolverType.REGULAR):
         # Main Program
         population = self.initialization()
@@ -353,7 +350,7 @@ class GeneticSolver:
             if stuck_counter >= self.terminate:
                 break
 
-            highest_fitness, key = self.get_best_results(population, fitness)
+            highest_fitness, key = get_best_results(population, fitness)
 
             plaintext = self.convert_to_plaintext(self.decrypt(key))
 
