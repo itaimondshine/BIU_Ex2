@@ -119,8 +119,8 @@ class GeneticSubstitutionSolver:
         self.ciphertext = ciphertext
         self.lettercase = [ch.islower() and ch.isalpha() for ch in self.ciphertext]
         self.ciphertext = self.ciphertext.upper()
-        self.bigram_frequency = read_letter_frequencies(BIGRAM_FILENAME_PATH)
-        self.unigram_frequency = read_letter_frequencies(UNIGRAM_FILENAME_PATH)
+        self.bigram_frequency = read_letter_frequencies(BIGRAMS_FILENAME_PATH)
+        self.unigram_frequency = read_letter_frequencies(UNIGRAMS_FILENAME_PATH)
         self.set_of_words = set(get_list_of_words(DICT_FILENAME_PATH))
         self.set_of_words_upper = {word.upper() for word in self.set_of_words}
         self.trigram_frequency = get_char_trigram_dict(DICT_FILENAME_PATH)
