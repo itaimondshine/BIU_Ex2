@@ -4,6 +4,7 @@ import numpy as np
 from consts import *
 import random
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
 class SolverType(Enum):
@@ -12,12 +13,15 @@ class SolverType(Enum):
     LAMARCK = 2
 
 
-def plot_graph(data, title="", xlabel="", ylabel=""):
+def plot_graph(data, title="", xlabel="", ylabel="", color=""):
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.title(title)
-    plt.plot(data)
-    plt.show()
+    if color:
+        plt.plot(data, c=color)
+    else:
+        plt.plot(data)
+    #plt.show()
 
 
 # --------------------------------------Util Functions -----------------------------#
@@ -146,7 +150,7 @@ class GeneticSubstitutionSolver:
         # Other parameters
         self.bigram_weight = 0.4
         self.unigram_weight = 0
-        self.trigram_weight = 0.6
+        self.trigram_weight = 0
         # Usage parameters
         self.verbose = False
 
@@ -180,14 +184,14 @@ class GeneticSubstitutionSolver:
     def calculate_key_fitness(self, text):
 
         unigrams = generate_ngrams(text, 1) if self.unigram_weight else []
-        bigrams = generate_ngrams(text, 2)
-        trigrams = []  # self.generate_ngrams(text, 3)
+        bigrams = generate_ngrams(text, 2) if self.bigram_weight else []
+        trigrams = generate_ngrams(text, 3) if self.trigram_weight else []
 
         unigrams_fitness = calculate_ngram_fitness(unigrams, self.unigram_frequency,
                                                    self.unigram_weight) if self.unigram_weight else 0
-        bigrams_fitness = calculate_ngram_fitness(bigrams, self.bigram_frequency, self.bigram_weight)
+        bigrams_fitness = calculate_ngram_fitness(bigrams, self.bigram_frequency, self.bigram_weight) if self.bigram_weight else 0
 
-        trigrams_fitness = 0  # self.calculate_ngram_fitness(trigrams, self.trigram_frequency, self.trigram_weight)
+        trigrams_fitness = calculate_ngram_fitness(trigrams, self.trigram_frequency, self.trigram_weight) if self.trigram_weight else 0
 
         words = text.split()
         words_appear = len(self.set_of_words_upper.intersection(words))
@@ -305,7 +309,6 @@ class GeneticSubstitutionSolver:
                     iter_best_key[best_key_dict[letter]] = last_letter
                     iter_best_key = "".join(iter_best_key)
                     population[best_index] = iter_best_key
-                    print("Optimized")
                     return population
 
         return population
@@ -317,17 +320,15 @@ class GeneticSubstitutionSolver:
         plaintext = ''
         highest_fitness = 0
         convergence_counter = 0
-        total_fitness = []
-        for gen in range(self.generations + 1):
+        total_max_fitness, total_mean_fitness = [], []
+        for gen in tqdm(range(self.generations + 1)):
 
             population, fitness = self.new_gen(population)
             if solver != SolverType.REGULAR:
                 optimized_population = self.optimize(population, fitness)
                 fitness = self.evaluation(optimized_population)
-                total_fitness.append(max(fitness))
-            else:
-                total_fitness.append(max(fitness))
-
+            total_max_fitness.append(max(fitness))
+            total_mean_fitness.append(np.average(fitness))
             if solver == SolverType.LAMARCK:
                 population = optimized_population
             # Terminate if highest_fitness not increasing
@@ -345,7 +346,9 @@ class GeneticSubstitutionSolver:
 
             # self.info_display(plaintext, highest_fitness, key, gen)
 
-        plot_graph(total_fitness, "Fitness per generations", "Number of generations", "Max Fitness Score")
+        plot_graph(total_max_fitness, "Fitness per generations", "Number of generations", "Fitness Score", color='b')
+        plot_graph(total_mean_fitness, "Fitness per generations", "Number of generations", "Fitness Score", color='c')
+        plt.show()
         save_plain_to_file(plain_text=plaintext)
         save_perm_to_file(key=key)
 
