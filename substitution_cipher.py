@@ -267,7 +267,6 @@ class GeneticSubstitutionSolver:
         return crossover_population
 
     def mutation(self, population, population_size):
-
         for i in range(population_size):
             r = random.random()
             if r < self.mutation_probability:
@@ -344,7 +343,7 @@ class GeneticSubstitutionSolver:
 
             plaintext = self.convert_to_plaintext(self.decrypt(key))
 
-            # self.info_display(plaintext, highest_fitness, key, gen)
+            self.info_display(plaintext, highest_fitness, key, gen)
 
         plot_graph(total_max_fitness, "Fitness per generations", "Number of generations", "Fitness Score", color='b')
         plot_graph(total_mean_fitness, "Fitness per generations", "Number of generations", "Fitness Score", color='c')
