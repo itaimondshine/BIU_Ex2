@@ -19,6 +19,7 @@ if solver_type not in ['regular', 'lamark', 'darwin']:
     sys.exit(1)
 
 solver = GeneticSubstitutionSolver(ciphertext)
+solver.verbose = True if verbose_display == "true" else False
 
 plaintext = ''
 
