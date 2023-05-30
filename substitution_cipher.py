@@ -140,11 +140,10 @@ class GeneticSubstitutionSolver:
         self.population_size = 500
         self.tournament_size = 20
         self.tournament_winner_probability = 0.75
-        self.crossover_probability = 0.65
+        self.crossover_probability = 0.7
         self.crossover_points_count = 5
         self.mutation_probability = 0.2
         self.elitism_percentage = 0.15
-        self.selection_method = 'TS'
         self.terminate = 20
 
         # Other parameters
@@ -251,14 +250,7 @@ class GeneticSubstitutionSolver:
 
         while len(crossover_population) < self.crossover_count:
 
-            if self.selection_method == 'RWS':
-                parent_one_index = self.select_by_tournament(pop, fit)
-                parent_two_index = self.select_by_roulette(fit)
-
-                parent_one = pop[parent_one_index]
-                parent_two = pop[parent_two_index]
-            else:
-                parent_one, parent_two = self.select_by_tournament(pop, fit)
+            parent_one, parent_two = self.select_by_tournament(pop, fit)
 
             crossover_population += [*self.generate_offspring(parent_one, parent_two)]
 
@@ -343,7 +335,8 @@ class GeneticSubstitutionSolver:
 
             plaintext = self.convert_to_plaintext(self.decrypt(key))
 
-            self.info_display(plaintext, highest_fitness, key, gen)
+            if self.verbose:
+                self.info_display(plaintext, highest_fitness, key, gen)
 
         plot_graph(total_max_fitness, "Fitness per generations", "Number of generations", "Fitness Score", color='b')
         plot_graph(total_mean_fitness, "Fitness per generations", "Number of generations", "Fitness Score", color='c')

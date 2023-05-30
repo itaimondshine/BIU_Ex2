@@ -21,3 +21,9 @@ pip3 install -r requirements.txt
 python3 main.py data/enc.txt regular true
 ```
 
+
+For cloning the project  
+
+```
+git clone https://github.com/itaimondshine/BIU_Ex2.git
+```
