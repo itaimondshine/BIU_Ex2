@@ -2,6 +2,9 @@ from substitution_cipher import GeneticSubstitutionSolver, SolverType
 from pathlib import Path
 import sys
 
+if len(sys.argv) < 2:
+    print("Encrypted file was not given")
+    sys.exit(1)
 ciphertext = Path(sys.argv[1]).read_text()
 solver_type = "regular"
 verbose_display = False
