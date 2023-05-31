@@ -27,3 +27,8 @@ For cloning the project
 ```
 git clone https://github.com/itaimondshine/BIU_Ex2.git
 ```
+
+
+For the exe file (too large)
+
+https://drive.google.com/file/d/1z1OvEXENxd3nR_8Y5UgkJSGKJOiDpecx/view?usp=sharing
